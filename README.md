@@ -1,4 +1,4 @@
-# rtMRI Inspector
+# rtMRI Inspect Python
 
 A browser-based Python tool for inspecting **real-time MRI speech recordings** together with their audio. It shows synchronised video and audio, a spectrogram, formant tracks, and vocal-tract **area functions** extracted frame by frame, and exports the results as CSV.
 
