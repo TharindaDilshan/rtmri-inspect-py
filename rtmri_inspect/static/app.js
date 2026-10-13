@@ -203,7 +203,7 @@ function drawTractOverlay(g, P, sc) {
   }
   if (res && $('#showBnd').checked) {
     const line = (pts, col) => { g.strokeStyle = col; g.lineWidth = 1.2; g.beginPath(); pts.forEach((p, i) => { const q = P(p[0], p[1]); i ? g.lineTo(...q) : g.moveTo(...q); }); g.stroke(); };
-    line(res.lf, 'rgba(60,255,120,.9)'); line(res.rt, 'rgba(70,200,255,.9)'); line(res.cen, 'rgba(255,230,70,.8)');
+    line(res.lf, 'rgba(60,255,120,.9)'); line(res.rt, 'rgba(70,200,255,.9)'); if ($('#showCen').checked) line(res.cen, 'rgba(255,230,70,.8)');
     const dot = (p, col, r) => { const q = P(p[0], p[1]); g.fillStyle = col; g.beginPath(); g.arc(q[0], q[1], r, 0, 7); g.fill(); };
     res.lf.forEach(p => dot(p, '#3dff78', 2.2)); res.rt.forEach(p => dot(p, '#46c8ff', 2.2));
     (res.edited || []).forEach(k => { dot(res.lf[k], '#fff', 3); dot(res.rt[k], '#fff', 3); });
@@ -598,7 +598,7 @@ function bind() {
   $('#afRef').onclick = async () => { try { applyTractMeta(await postJSON('/api/tract/ref', { frame: S.frame })); requestTract(); toast(`Frame ${S.frame + 1} is now the reference for palate and pharyngeal wall.`); } catch (e) { toast(e.message); } };
   $('#afRefClear').onclick = async () => { applyTractMeta(await postJSON('/api/tract/ref', { frame: S.frame, clear: true })); requestTract(); };
   $('#afAuto').onchange = () => { if ($('#afAuto').checked) requestTract(); };
-  ['showGrid', 'showBnd'].forEach(id => $('#' + id).onchange = () => draw('video'));
+  ['showGrid', 'showBnd', 'showCen'].forEach(id => $('#' + id).onchange = () => draw('video'));
   $('#editMode').onchange = updateLmUI;
   $('#afClearEdits').onclick = async () => { try { setTractRes(await postJSON('/api/tract/clear_edits', { frame: S.frame })); } catch (e) { toast(e.message); } };
   $('#afBatch').onclick = exportRange;
