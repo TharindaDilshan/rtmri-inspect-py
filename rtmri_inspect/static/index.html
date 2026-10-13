@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>rtMRI Inspector</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">rtMRI <b>Inspector</b></div>
+  <select id="fileSel" title="Recording"></select>
+  <button id="btnFolder" title="Choose another folder to scan">Folder…</button>
+  <span id="folderPath" class="dim"></span>
+  <span class="spacer"></span>
+  <span id="readout" class="mono"></span>
+  <button id="btnHelp" title="Keyboard shortcuts">?</button>
+</header>
+
+<div id="banner" class="banner hidden"></div>
+
+<main>
+  <section id="left">
+    <div class="card">
+      <div class="cardhead"><span>Video</span><span id="frameInfo" class="mono dim"></span></div>
+      <div id="videoWrap"><canvas id="video"></canvas><div id="vmsg" class="vmsg hidden"></div></div>
+      <div class="transport">
+        <button id="bPlay" class="primary" title="Play / pause (Space)">▶</button>
+        <button id="bPrev" title="Previous frame (←)">◀</button>
+        <button id="bNext" title="Next frame (→)">▶</button>
+        <input id="slider" type="range" min="0" max="1000" value="0">
+      </div>
+      <div class="row">
+        <label>frame <input id="frameNo" type="number" min="1" step="1" class="w70"></label>
+        <label>time <input id="timeNo" type="number" step="0.01" class="w80"> s</label>
+        <label>speed <select id="rate"><option value="1">1×</option><option value="0.5">½×</option><option value="0.25">¼×</option></select></label>
+        <label class="chk"><input id="loop" type="checkbox"> loop</label>
+      </div>
+      <div class="row">
+        <button id="bPlayWin">▶ window</button>
+        <button id="bPlaySel">▶ selection</button>
+        <button id="bSavePng" title="Save the current frame as PNG">Frame PNG</button>
+      </div>
+      <details class="imgctl">
+        <summary>Image display</summary>
+        <div class="grid2">
+          <label>brightness <input id="iBri" type="range" min="-100" max="100" value="0"></label>
+          <label>contrast <input id="iCon" type="range" min="50" max="300" value="100"></label>
+          <label>gamma <input id="iGam" type="range" min="40" max="250" value="100"></label>
+          <label class="chk"><input id="iSmooth" type="checkbox" checked> smooth upscaling</label>
+          <label class="chk"><input id="iFlat" type="checkbox"> flatten coil shading</label>
+          <button id="iReset">reset</button>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <section id="right">
+    <div class="card" id="audioCard">
+      <div class="cardhead">
+        <span>Audio</span>
+        <span class="dim mono" id="selInfo"></span>
+        <span class="spacer"></span>
+        <label class="inl">window <input id="winLen" type="number" min="0.02" step="0.1" class="w60"> s</label>
+        <button id="winMinus" title="Zoom in">−</button><button id="winPlus" title="Zoom out">+</button>
+        <button id="winAll">all</button>
+        <label class="chk"><input id="showFmt" type="checkbox"> formants</label>
+      </div>
+      <canvas id="cOver" class="aud"></canvas>
+      <canvas id="cWave" class="aud"></canvas>
+      <canvas id="cSpec" class="aud"></canvas>
+      <div id="noAudio" class="dim hidden">No audio for this recording. Video tools still work.</div>
+    </div>
+
+    <div class="card tabs">
+      <nav>
+        <button data-tab="tAF" class="on">Area function</button>
+        <button data-tab="tDisp">Spectrogram &amp; formants</button>
+        <button data-tab="tSync">Sync &amp; data</button>
+        <button data-tab="tLab">Labels &amp; export</button>
+      </nav>
+
+      <div id="tAF" class="tab on">
+        <div class="afgrid">
+          <div>
+            <div class="step"><b>1.</b> Place landmarks on a clear frame (face pointing left):</div>
+            <div class="row lmrow">
+              <button data-lm="glot" class="lm">1 Glottis</button>
+              <button data-lm="mpal" class="lm">2 Highest palate point</button>
+              <button data-lm="dent" class="lm">3 Alveolar ridge</button>
+              <button data-lm="mlab" class="lm">4 Lip limit</button>
+            </div>
+            <div id="lmHelp" class="dim small"></div>
+            <div class="step"><b>2.</b> Extract:</div>
+            <div class="row">
+              <label class="chk"><input id="afAuto" type="checkbox" checked> follow current frame</label>
+              <label class="chk"><input id="showGrid" type="checkbox" checked> grid</label>
+              <label class="chk"><input id="showBnd" type="checkbox" checked> boundaries</label>
+            </div>
+            <div class="row">
+              <button id="afRef" title="Use this frame's palate and pharyngeal wall for all frames">Set reference frame</button>
+              <button id="afRefClear">Clear reference</button>
+              <button id="afClearLm" class="warn">Reset grid</button>
+            </div>
+            <div class="row">
+              <label>edit boundary
+                <select id="editMode"><option value="">off</option><option value="lf">tongue / lower side</option><option value="rt">palate / wall side</option></select>
+              </label>
+              <button id="afClearEdits">Clear edits (this frame)</button>
+            </div>
+            <div class="step"><b>3.</b> Export CSV:</div>
+            <div class="row"><button id="afCsvFrame" class="primary" title="Area function of the frame currently shown">This frame</button></div>
+            <div class="row">
+              <label>range <select id="batchRange"><option value="sel">selection</option><option value="win">window</option><option value="all">whole file</option></select></label>
+              <label>every <input id="batchStep" type="number" min="1" value="1" class="w50"> frame(s)</label>
+              <label>layout <select id="batchKind"><option value="long">all gridlines</option><option value="summary">one row per frame</option></select></label>
+              <button id="afBatch">Export range</button>
+            </div>
+            <div class="progress hidden" id="prog"><div></div></div>
+            <details>
+              <summary>Grid &amp; threshold settings</summary>
+              <div class="grid2" id="afParams">
+                <label>gridline length (px) <input data-p="wid" type="number" step="0.5"></label>
+                <label>spacing (px) <input data-p="spacing" type="number" step="0.1"></label>
+                <label title="Fraction of the way from airway to tissue intensity at which the boundary is placed">boundary threshold <input data-p="ithrsh" type="number" step="0.05" min="0.1" max="0.95"></label>
+                <label title="Weight of pixel darkness (vs. path length) when tracing the centre-line">centre-line intensity weight <input data-p="diwtcl" type="number" step="0.05" min="0" max="1"></label>
+                <label>smoothing σ (px) <input data-p="smooth_sigma" type="number" step="0.1" min="0"></label>
+                <label>tongue DCT keep <input data-p="dct_keep" type="number" step="0.01" min="0.8" max="1"></label>
+                <label title="area (cm²) = α · d(cm)^β">area α <input data-p="area_alpha" type="number" step="0.1"></label>
+                <label>area β <input data-p="area_beta" type="number" step="0.05"></label>
+                <label>pharynx lines <input data-pr="pha" type="text" class="w80" placeholder="a,b"></label>
+                <label>palate lines <input data-pr="pal" type="text" class="w80" placeholder="a,b"></label>
+                <label>tongue lines <input data-pr="tng" type="text" class="w80" placeholder="a,b"></label>
+                <label class="chk"><input data-pb="use_ref" type="checkbox"> use reference palate/wall</label>
+                <label class="chk"><input data-pb="use_shift" type="checkbox"> follow head motion</label>
+                <label class="chk"><input data-pb="recenter" type="checkbox"> centre-line = midpoint of boundaries</label>
+                <label class="chk"><input data-pb="smooth_tongue" type="checkbox"> smooth tongue surface</label>
+              </div>
+            </details>
+          </div>
+          <div>
+            <div class="row">
+              <span class="dim">Show</span>
+              <select id="afUnit"><option value="mm">aperture (mm)</option><option value="area">area (cm²)</option></select>
+              <span id="afStats" class="mono dim"></span>
+            </div>
+            <canvas id="cAFplot"></canvas>
+            <div id="afMsg" class="small dim"></div>
+            <div id="afFmt" class="small mono"></div>
+            <div class="row">
+              <button id="afSynth" title="Rosenberg glottal pulses through this frame's tube model">▶ Synthesize vowel</button>
+              <label>f0 <input id="synF0" type="number" value="120" min="50" max="400" class="w60"> Hz</label>
+              <label>length <input id="synDur" type="number" value="2" min="0.5" max="10" step="0.5" class="w50"> s</label>
+              <button id="afSynthSave">Save wav</button>
+            </div>
+            <div class="small dim">Source-filter model: Rosenberg glottal flow → tube chain (with simple losses and lip radiation). Needs the area-function constants in "Grid &amp; threshold settings".</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tDisp" class="tab">
+        <div class="grid3">
+          <fieldset><legend>Spectrogram</legend>
+            <label>window (ms) <input id="sgWin" type="number" value="20" step="1" min="2"></label>
+            <label>step (ms) <input id="sgStep" type="number" value="5" step="0.5" min="0.5"></label>
+            <label>max freq (Hz) <input id="sgFmax" type="number" value="5000" step="500" min="500"></label>
+            <label>dynamic range (dB) <input id="sgDr" type="number" value="55" step="5" min="10"></label>
+            <label>level shift (dB) <input id="sgTop" type="number" value="0" step="3"></label>
+            <label>colour <select id="sgMap"><option value="ink">ink (MATLAB-like)</option><option value="gray">gray</option><option value="magma">magma</option><option value="viridis">viridis</option></select></label>
+            <label class="chk"><input id="sgPre" type="checkbox" checked> pre-emphasis</label>
+          </fieldset>
+          <fieldset><legend>Formant tracking</legend>
+            <label>formants <input id="fN" type="number" value="4" min="1" max="6"></label>
+            <label>ceiling (Hz) <input id="fMax" type="number" value="5500" step="250"></label>
+            <label>window (ms) <input id="fWin" type="number" value="25" step="1"></label>
+            <label>step (ms) <input id="fStep" type="number" value="5" step="1" min="1"></label>
+            <label title="0 = automatic (2·formants+2)">LPC order <input id="fOrd" type="number" value="0" min="0"></label>
+            <label>max bandwidth (Hz) <input id="fBw" type="number" value="600" step="50"></label>
+            <label title="Frames quieter than this (dB below loud speech) are not tracked">silence gate (dB) <input id="fLvl" type="number" value="-40" step="5"></label>
+            <label title="Scale nominal formant targets: ~1.15 for female / child voices">speaker scale <input id="fScale" type="number" value="1" step="0.05" min="0.6" max="1.6"></label>
+          </fieldset>
+          <fieldset><legend>Readout at cursor</legend>
+            <div id="fmtReadout" class="mono small">—</div>
+            <p class="dim small">Turn on <b>formants</b> in the audio header to overlay tracks. Formants are tracked with LPC and a continuity (Viterbi) search; check them against the spectrogram before trusting them.</p>
+          </fieldset>
+        </div>
+      </div>
+
+      <div id="tSync" class="tab">
+        <div class="grid3">
+          <fieldset><legend>Audio / video alignment</legend>
+            <label>A/V offset (s) <input id="avOff" type="number" step="0.01" value="0" class="w80"></label>
+            <div class="row"><button data-nudge="-0.1">−0.1</button><button data-nudge="-0.01">−0.01</button><button data-nudge="0.01">+0.01</button><button data-nudge="0.1">+0.1</button></div>
+            <p class="dim small">Positive offset delays the audio relative to the video. Both start at t = 0.</p>
+            <div class="row"><button id="syncEst">Estimate from motion vs. audio</button></div>
+            <div id="syncOut" class="small"></div>
+            <canvas id="cSync" height="90"></canvas>
+          </fieldset>
+          <fieldset><legend>Image geometry</legend>
+            <label>field of view width (mm) <input id="fov" type="number" value="280" step="1" class="w80"></label>
+            <div class="small mono" id="pxInfo"></div>
+            <label>or pixel size (mm/px) <input id="pxOverride" type="number" step="0.01" class="w80" placeholder="auto"></label>
+            <label class="chk"><input id="flipH" type="checkbox"> face points right (mirror image)</label>
+            <p class="dim small">Pixel size scales every length and area. The old MATLAB tool used 280/288 mm per pixel for a 146-px frame; check the tract length shown in the Area function tab (adult ≈ 160–185 mm).</p>
+          </fieldset>
+          <fieldset><legend>Audio clean-up</legend>
+            <label>attenuate first (s) <input id="burstS" type="number" value="0" step="0.05" min="0" class="w80"></label>
+            <label>by factor <input id="burstA" type="number" value="0.1" step="0.05" min="0" max="1" class="w80"></label>
+            <p class="dim small">The MATLAB tool silenced the first 0.55 s (scanner start-up noise) at ×0.1. Applies to spectrogram, waveform and formants; playback stays unmodified.</p>
+          </fieldset>
+        </div>
+        <div id="warnList" class="small"></div>
+      </div>
+
+      <div id="tLab" class="tab">
+        <div class="grid3">
+          <fieldset><legend>Labels (time intervals)</legend>
+            <div class="row"><input id="labText" type="text" placeholder="label, e.g. a" class="w120"><button id="labAdd">Add for selection / window</button></div>
+            <div id="labList" class="small"></div>
+            <div class="row"><a class="btn" href="/api/labels.csv">CSV</a></div>
+          </fieldset>
+          <fieldset><legend>Export</legend>
+            <div class="row"><label>range <select id="expRange"><option value="sel">selection</option><option value="win">window</option><option value="all">whole file</option></select></label></div>
+            <div class="row"><button id="expClip">Video + audio (mp4)</button><button id="expWav">Audio (wav)</button></div>
+            <div class="row"><button id="expSpec">Spectrogram PNG</button><button id="expFmt">Formants CSV</button></div>
+            <div class="row"><button id="expSession">Save session now</button></div>
+            <div id="expMsg" class="small dim"></div>
+          </fieldset>
+          <fieldset><legend>About saving</legend>
+            <p class="dim small">Landmarks, grid settings, reference frame, boundary edits, labels and display settings are saved automatically per recording in the output folder and restored next time you open it.</p>
+          </fieldset>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="modal" class="modal hidden"><div class="box" id="modalBox"></div></div>
+<audio id="aud" preload="auto"></audio>
+<script src="/static/app.js"></script>
+</body>
+</html>

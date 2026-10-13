@@ -1,0 +1,10 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.env
+*.env
+
+*.mp4
+*.wav
+rtmri_output/
