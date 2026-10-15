@@ -39,8 +39,8 @@ pip install -r requirements.txt     # numpy, scipy, opencv-python-headless, flas
 ## Run
 
 ```bash
-python -m rtmri_web /path/to/data                 # scan a folder (recursively) for videos
-python -m rtmri_web clip.mp4 --wav clip.wav       # open one video with a specific audio file
+python -m rtmri_inspect /path/to/data                 # scan a folder (recursively) for videos
+python -m rtmri_inspect clip.mp4 --wav clip.wav       # open one video with a specific audio file
 ```
 
 | Option | Meaning |
