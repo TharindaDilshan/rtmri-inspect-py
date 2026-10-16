@@ -8,8 +8,6 @@ Everything runs **locally**. The app starts a small web server on your own machi
 
 > **Research software.** The outputs (formants, areas, lengths) depend on settings and assumptions listed under [Constants and assumptions](#constants-and-assumptions). Check them against your own acquisition and review the overlays before using numbers in a publication.
 
-![rtMRI Inspect interface](media/interface.png)
-
 ---
 
 ## Features
