@@ -85,7 +85,7 @@ async function loadFiles() {
   const f = await getJSON('/api/files');
   const sel = $('#fileSel'); sel.innerHTML = '';
   if (!f.files.length) { sel.innerHTML = '<option value="">(no videos found)</option>'; }
-  f.files.forEach((e, i) => { const o = document.createElement('option'); o.value = i; o.textContent = e.rel + (e.wav ? '' : '  (no audio)'); o.dataset.v = e.video; o.dataset.w = e.wav || ''; sel.appendChild(o); });
+  f.files.forEach((e, i) => { const o = document.createElement('option'); o.value = i; o.textContent = e.rel + (!e.video ? '  (no video)' : e.wav ? '' : '  (no audio)'); o.disabled = !e.video; o.dataset.v = e.video || ''; o.dataset.w = e.wav || ''; sel.appendChild(o); });
   const cur = f.files.findIndex(e => e.token === f.open);
   if (cur >= 0) sel.value = cur; else sel.value = '';
   if (cur < 0 && f.files.length) { sel.insertBefore(Object.assign(document.createElement('option'), { value: '', textContent: 'Choose a recording…' }), sel.firstChild); sel.value = ''; }
@@ -551,10 +551,7 @@ function saveCanvasPng(canvas, name) { canvas.toBlob(b => { const u = URL.create
 /* ------------------------------------------------------------------ wiring */
 function bind() {
   $('#fileSel').onchange = openSelected;
-  $('#btnFolder').onclick = async () => {
-    const p = prompt('Folder (or video file) to scan, on the computer running this app:', $('#folderPath').textContent || ''); if (!p) return;
-    try { await postJSON('/api/scan', { path: p }); await loadFiles(); if ($('#fileSel').options.length > 1 || $('#fileSel').value) { /* user picks */ } } catch (e) { toast(e.message); }
-  };
+  $('#btnFolder').onclick = () => folderPicker();
   $('#bPlay').onclick = () => S.playing ? stop() : play(S.t, null);
   $('#bPrev').onclick = () => stepFrame(-1); $('#bNext').onclick = () => stepFrame(1);
   $('#slider').oninput = e => { const f = +e.target.value; setTime(S.ft[f]); };
@@ -660,10 +657,48 @@ async function estimateSync() {
   } catch (e) { out.textContent = e.message; }
 }
 
+/* ------------------------------------------------------------------ folder picker */
+async function folderPicker() {
+  const modal = $('#modal'), box = $('#modalBox');
+  let cur = null;
+  box.innerHTML = `<div class="fp"><h3 style="margin:0 0 8px">Choose the root folder</h3>
+    <p class="dim small" style="margin:0 0 8px">Pick the folder that contains the <b>mp4</b> and <b>wav</b> sub-folders. Double-click a folder to open it.</p>
+    <div class="quick" id="fpQuick"></div>
+    <div class="path"><button id="fpUp" title="Parent folder">↑</button><input id="fpPath" spellcheck="false"><button id="fpGo">Go</button></div>
+    <div class="list" id="fpList"></div><div class="info small" id="fpInfo"></div>
+    <div class="row"><button id="fpCancel">Cancel</button><button id="fpSel" class="primary">Use this folder</button></div></div>`;
+  modal.classList.remove('hidden');
+  const close = () => modal.classList.add('hidden');
+  const go = async p => {
+    let r; try { r = await getJSON('/api/browse' + (p ? '?path=' + encodeURIComponent(p) : '')); } catch (e) { toast(e.message); return; }
+    cur = r; $('#fpPath').value = r.path;
+    $('#fpUp').disabled = !r.parent; $('#fpUp').onclick = () => go(r.parent);
+    const q = $('#fpQuick'); q.innerHTML = '';
+    [['Home', r.home], ...r.drives.map(d => [d, d])].forEach(([n, pp]) => { const b = document.createElement('button'); b.textContent = n; b.onclick = () => go(pp); q.appendChild(b); });
+    const l = $('#fpList'); l.innerHTML = '';
+    if (!r.dirs.length) l.innerHTML = '<div class="dim">(no sub-folders)</div>';
+    r.dirs.forEach(d => { const e = document.createElement('div'); e.textContent = '📁 ' + d.name; e.onclick = () => { $('#fpPath').value = d.path; }; e.ondblclick = () => go(d.path); l.appendChild(e); });
+    const i = r.info, inf = $('#fpInfo');
+    if (i.video && i.audio) inf.innerHTML = `<span class="ok">✔ ${i.video[0]}/ has ${i.video[1]} video file(s), ${i.audio[0]}/ has ${i.audio[1]} audio file(s)</span>`;
+    else if (i.loose_videos) inf.textContent = `${i.loose_videos} video file(s) here (no mp4/ + wav/ sub-folders: the folder will be searched for videos and matching audio).`;
+    else inf.innerHTML = '<span class="dim">No mp4/ and wav/ sub-folders here.</span>';
+    if (r.error) inf.textContent = r.error;
+  };
+  $('#fpGo').onclick = () => go($('#fpPath').value);
+  $('#fpPath').onkeydown = e => { if (e.key === 'Enter') go($('#fpPath').value); };
+  $('#fpCancel').onclick = close;
+  $('#fpSel').onclick = async () => {
+    const p = $('#fpPath').value || cur.path;
+    try { await postJSON('/api/scan', { path: p }); close(); await loadFiles(); const n = $('#fileSel').options.length; toast(n > 1 ? 'Choose a recording from the list.' : 'No videos found in that folder.', 4000); }
+    catch (e) { toast(e.message); }
+  };
+  await go($('#folderPath').textContent || '');
+}
+
 /* ------------------------------------------------------------------ boot */
 (async function boot() {
   bind(); updateLmUI();
   try { await loadFiles(); } catch (e) { toast(e.message); }
-  try { const m = await getJSON('/api/meta'); if (m.open === false) { if ($('#fileSel').options.length > 1) toast('Choose a recording from the list.', 4000); } else init(m); } catch (e) { toast(e.message); }
+  try { const m = await getJSON('/api/meta'); if (m.open === false) { if (!$('#folderPath').textContent) folderPicker(); else if ($('#fileSel').options.length > 1) toast('Choose a recording from the list.', 4000); } else init(m); } catch (e) { toast(e.message); }
   window.__S = S; // handy for debugging / tests
 })();

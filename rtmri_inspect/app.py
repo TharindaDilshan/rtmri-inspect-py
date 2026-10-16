@@ -150,10 +150,11 @@ def clamp_dur(d: float) -> float:
 
 
 def create_app(root, out_dir) -> Flask:
-    root, out_dir = Path(root), Path(out_dir)
+    root = Path(root) if root else None
+    out_dir = Path(out_dir)
     app = Flask(__name__, static_folder=None)
     S = Session(out_dir)
-    state = {"root": Path(root), "files": discover(Path(root)) if Path(root).exists() else []}
+    state = {"root": root or "", "files": discover(root) if root and root.exists() else []}
 
     # ---------------------------------------------------------------- static
     @app.get("/")
@@ -179,6 +180,42 @@ def create_app(root, out_dir) -> Flask:
         state["root"] = p if p.is_dir() else p.parent
         state["files"] = discover(p)
         return J({"root": str(state["root"]), "files": state["files"]})
+
+    @app.get("/api/browse")
+    def browse():
+        """List sub-folders of a folder on this computer (for the in-app folder picker)."""
+        import os
+        from .media import _subdir, VIDEO_EXTS, AUDIO_EXTS
+        raw = request.args.get("path") or str(state["root"] or Path.home())
+        p = Path(raw).expanduser()
+        try:
+            p = p.resolve()
+        except Exception:
+            pass
+        while not p.is_dir() and p != p.parent:
+            p = p.parent
+        dirs, err = [], None
+        try:
+            for d in sorted(p.iterdir(), key=lambda q: q.name.lower()):
+                try:
+                    if d.is_dir() and not d.name.startswith("."):
+                        dirs.append({"name": d.name, "path": str(d)})
+                except OSError:
+                    pass
+        except OSError as e:
+            err = str(e)
+        info = {"video": None, "audio": None}
+        try:
+            vd, ad = _subdir(p, ("mp4", "video", "videos")), _subdir(p, ("wav", "audio"))
+            cnt = lambda d, ex: sum(1 for q in d.iterdir() if q.is_file() and q.suffix.lower() in ex and not q.name.startswith("."))
+            if vd: info["video"] = [vd.name, cnt(vd, VIDEO_EXTS)]
+            if ad: info["audio"] = [ad.name, cnt(ad, AUDIO_EXTS)]
+            info["loose_videos"] = cnt(p, VIDEO_EXTS)
+        except OSError:
+            pass
+        drives = [f"{c}:\\" for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" if os.name == "nt" and Path(f"{c}:\\").exists()]
+        return J({"path": str(p), "parent": str(p.parent) if p.parent != p else None, "dirs": dirs, "home": str(Path.home()),
+                  "drives": drives, "info": info, "error": err})
 
     def meta():
         m = S.media
@@ -599,18 +636,18 @@ def create_app(root, out_dir) -> Flask:
 def main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(prog="rtmri_web", description="Browser-based rtMRI + audio inspector")
-    ap.add_argument("path", nargs="?", default=".", help="folder containing videos (searched recursively) or a single video file")
+    ap.add_argument("path", nargs="?", default=None, help="optional: root folder containing mp4/ and wav/ sub-folders (if omitted, pick the folder in the browser; otherwise any folder of videos, searched recursively) or a single video file")
     ap.add_argument("--wav", help="audio file to pair with a single video file")
     ap.add_argument("--out", default="rtmri_output", help="where sessions, clips and exports are written")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--no-browser", action="store_true")
     a = ap.parse_args(argv)
-    path = Path(a.path).expanduser()
+    path = Path(a.path).expanduser() if a.path else None
     app = create_app(path, Path(a.out).expanduser())
     S = app.S
     first = None
-    if path.is_file():
+    if path is not None and path.is_file():
         first = {"video": str(path), "wav": a.wav}
         if not a.wav:
             f = discover(path)

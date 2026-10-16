@@ -30,6 +30,34 @@ AUDIO_EXTS = {".wav", ".flac", ".mp3", ".m4a", ".ogg"}
 
 
 # --------------------------------------------------------------------------- discovery
+def _subdir(root: Path, names: tuple[str, ...]) -> Path | None:
+    """Return the sub-folder of ``root`` whose name matches one of ``names`` (case-insensitive)."""
+    for d in sorted(root.iterdir()):
+        if d.is_dir() and d.name.lower() in names:
+            return d
+    return None
+
+
+def _discover_root(root: Path) -> list[dict] | None:
+    """Root-folder layout: ``root/mp4/*.mp4`` and ``root/wav/*.wav``.
+
+    Returns one entry per base name found in either folder (sorted), paired by name,
+    or None if ``root`` does not have both sub-folders (the generic search is used instead).
+    A name missing its video is listed with ``video`` = None (it cannot be opened).
+    """
+    vdir = _subdir(root, ("mp4", "video", "videos"))
+    adir = _subdir(root, ("wav", "audio"))
+    if vdir is None or adir is None:
+        return None
+    vids = {p.stem: p for p in sorted(vdir.iterdir()) if p.is_file() and p.suffix.lower() in VIDEO_EXTS and not p.name.startswith(".")}
+    auds = {p.stem: p for p in sorted(adir.iterdir()) if p.is_file() and p.suffix.lower() in AUDIO_EXTS and not p.name.startswith(".")}
+    out = []
+    for name in sorted(set(vids) | set(auds)):
+        v, a = vids.get(name), auds.get(name)
+        out.append({"token": name, "video": str(v) if v else None, "wav": str(a) if a else None, "rel": name})
+    return out
+
+
 def discover(root: Path) -> list[dict]:
     """Find video files under ``root`` and pair each with a matching audio file.
 
@@ -37,6 +65,10 @@ def discover(root: Path) -> list[dict]:
     in ``wav``/``audio`` folders beside or above it, then anywhere under root.
     """
     root = Path(root)
+    if root.is_dir():
+        structured = _discover_root(root)
+        if structured is not None:
+            return structured
     if root.is_file():
         vids = [root]
         base = root.parent

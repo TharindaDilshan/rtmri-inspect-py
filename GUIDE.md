@@ -1,17 +1,14 @@
-# rtMRI Inspector: Quick Guide
+# rtMRI Inspect: Quick Guide
 
-A short walkthrough from opening a recording to exporting an area function. For installation and constants see the [README](README.md).
+A short walkthrough from opening a recording to exporting an area function..
 
 ## 1. Start the app
 
 ```bash
-python -m rtmri_web /path/to/data            # a folder of videos
-python -m rtmri_web clip.mp4 --wav clip.wav  # or one specific pair
+python -m rtmri_inspect
 ```
 
-A browser tab opens. Pick a recording from the drop-down at the top. If a recording has no matching audio, the list says "(no audio)" and the audio tools are hidden. The video still works.
-
-On opening, check the yellow notice at the top. It warns if audio and video lengths differ.
+A browser tab opens. Pick the directory with mp4 and wav folders from the file explorer. If a recording has no matching audio, the list says "(no audio)" and the audio tools are hidden. The video still works.
 
 ## 2. The screen
 
